@@ -1,50 +1,56 @@
 const zipInput = document.getElementById('zipInput');
+const importBtn = document.getElementById('importBtn');
 const startBtn = document.getElementById('startBtn');
-const chooseFolderBtn = document.getElementById('chooseFolderBtn');
-const logDiv = document.getElementById('log');
+const folderBtn = document.getElementById('folderBtn');
 const progressBar = document.getElementById('progressBar');
+const logBox = document.getElementById('log');
 
+let selectedZips = [];
 let directoryHandle = null;
-let allFiles = [];
+let filesForFinalZip = [];
+
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 function log(msg) {
-    logDiv.textContent += msg + "\n";
+    logBox.textContent += msg + "\n";
 }
 
-function updateProgress(p) {
+function setProgress(p) {
     progressBar.style.width = p + "%";
 }
 
-chooseFolderBtn.addEventListener('click', async () => {
+importBtn.onclick = () => zipInput.click();
+
+zipInput.onchange = (e) => {
+    selectedZips = [...e.target.files];
+    log(selectedZips.length + " ZIP importés.");
+};
+
+folderBtn.onclick = async () => {
     try {
         directoryHandle = await window.showDirectoryPicker();
-        log("Dossier choisi !");
+        log("Dossier sélectionné.");
     } catch {}
-});
+};
 
-startBtn.addEventListener('click', async () => {
-    const files = zipInput.files;
-    if (files.length === 0) {
-        log("Ajoute des ZIP !");
+startBtn.onclick = async () => {
+    if (selectedZips.length === 0) {
+        log("Importe des ZIP.");
         return;
     }
 
-    log("Lecture des ZIP...");
-    let totalEntries = 0;
-
-    // 1) Lire tous les zips et compter
-    for (let file of files) {
-        const zip = await JSZip.loadAsync(file);
-        totalEntries += Object.keys(zip.files).length;
-    }
-
+    let totalFiles = 0;
     let processed = 0;
 
-    // 2) Extraction
-    for (let file of files) {
-        log("Ouverture : " + file.name);
-        const zip = await JSZip.loadAsync(file);
+    // Compter fichiers
+    for (let zipFile of selectedZips) {
+        const zip = await JSZip.loadAsync(zipFile);
+        totalFiles += Object.values(zip.files).filter(f => !f.dir).length;
+    }
+
+    for (let zipFile of selectedZips) {
+        log("Ouverture " + zipFile.name);
+        const zip = await JSZip.loadAsync(zipFile);
 
         for (let name in zip.files) {
             const entry = zip.files[name];
@@ -58,37 +64,39 @@ startBtn.addEventListener('click', async () => {
                     return;
                 }
 
-                const fileHandle = await directoryHandle.getFileHandle(
+                const handle = await directoryHandle.getFileHandle(
                     name.split('/').pop(),
                     { create: true }
                 );
-                const writable = await fileHandle.createWritable();
+                const writable = await handle.createWritable();
                 await writable.write(blob);
                 await writable.close();
             } else {
-                allFiles.push({ name: name.split('/').pop(), blob });
+                filesForFinalZip.push({
+                    name: name.split('/').pop(),
+                    blob
+                });
             }
 
             processed++;
-            updateProgress(Math.round((processed / totalEntries) * 100));
+            setProgress(Math.floor((processed / totalFiles) * 100));
         }
     }
 
-    // 3) PC : créer le ZIP final
     if (!isMobile) {
-        log("Création du ZIP final...");
+        log("Création ZIP final...");
         const finalZip = new JSZip();
 
-        allFiles.forEach((f, i) => {
+        filesForFinalZip.forEach((f, i) => {
             finalZip.file(i + "_" + f.name, f.blob);
         });
 
         const content = await finalZip.generateAsync({ type: "blob" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(content);
-        a.download = "fusion_finale.zip";
+        a.download = "ZIP_FUSION_FINAL.zip";
         a.click();
     }
 
-    log("Terminé !");
-});
+    log("Terminé.");
+};
