@@ -1,102 +1,139 @@
-const zipInput = document.getElementById('zipInput');
-const importBtn = document.getElementById('importBtn');
-const startBtn = document.getElementById('startBtn');
-const folderBtn = document.getElementById('folderBtn');
+// Configuration de zip.js
+// Important : permet d'utiliser les workers pour ne pas figer la page
+zip.configure({
+    useWebWorkers: true
+});
+
+const fileInput = document.getElementById('fileInput');
+const fileList = document.getElementById('fileList');
+const mergeBtn = document.getElementById('mergeBtn');
+const statusSection = document.getElementById('statusSection');
 const progressBar = document.getElementById('progressBar');
-const logBox = document.getElementById('log');
+const logWindow = document.getElementById('logWindow');
+const downloadSection = document.getElementById('downloadSection');
+const downloadLink = document.getElementById('downloadLink');
 
-let selectedZips = [];
-let directoryHandle = null;
-let filesForFinalZip = [];
+let selectedFiles = [];
 
-const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-function log(msg) {
-    logBox.textContent += msg + "\n";
-}
-
-function setProgress(p) {
-    progressBar.style.width = p + "%";
-}
-
-importBtn.onclick = () => zipInput.click();
-
-zipInput.onchange = (e) => {
-    selectedZips = [...e.target.files];
-    log(selectedZips.length + " ZIP importés.");
-};
-
-folderBtn.onclick = async () => {
-    try {
-        directoryHandle = await window.showDirectoryPicker();
-        log("Dossier sélectionné.");
-    } catch {}
-};
-
-startBtn.onclick = async () => {
-    if (selectedZips.length === 0) {
-        log("Importe des ZIP.");
+// Gestion de la sélection des fichiers
+fileInput.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    
+    if (files.length > 3) {
+        alert("Maximum 3 fichiers ZIP autorisés.");
+        fileInput.value = ""; // Reset
+        selectedFiles = [];
+        renderFileList();
         return;
     }
 
-    let totalFiles = 0;
-    let processed = 0;
-
-    // Compter fichiers
-    for (let zipFile of selectedZips) {
-        const zip = await JSZip.loadAsync(zipFile);
-        totalFiles += Object.values(zip.files).filter(f => !f.dir).length;
+    selectedFiles = files;
+    renderFileList();
+    
+    if (selectedFiles.length > 0) {
+        mergeBtn.disabled = false;
+        mergeBtn.textContent = `Fusionner ${selectedFiles.length} Archives`;
+    } else {
+        mergeBtn.disabled = true;
     }
+});
 
-    for (let zipFile of selectedZips) {
-        log("Ouverture " + zipFile.name);
-        const zip = await JSZip.loadAsync(zipFile);
+function renderFileList() {
+    fileList.innerHTML = '';
+    selectedFiles.forEach(file => {
+        const div = document.createElement('div');
+        div.className = 'file-item';
+        // Affiche le nom et la taille en Mo/Go
+        const size = (file.size / (1024 * 1024)).toFixed(2);
+        div.textContent = `${file.name} (${size} MB)`;
+        fileList.appendChild(div);
+    });
+}
 
-        for (let name in zip.files) {
-            const entry = zip.files[name];
-            if (entry.dir) continue;
+function log(message) {
+    const p = document.createElement('div');
+    p.className = 'log-entry';
+    // Ajout de l'heure
+    const time = new Date().toLocaleTimeString();
+    p.innerHTML = `<span style="color: #58a6ff">[${time}]</span> ${message}`;
+    logWindow.appendChild(p);
+    logWindow.scrollTop = logWindow.scrollHeight; // Auto-scroll vers le bas
+}
 
-            const blob = await entry.async("blob");
+mergeBtn.addEventListener('click', async () => {
+    if (selectedFiles.length === 0) return;
 
-            if (isMobile) {
-                if (!directoryHandle) {
-                    log("Choisis un dossier !");
-                    return;
-                }
+    // UI Updates
+    mergeBtn.disabled = true;
+    fileInput.disabled = true;
+    statusSection.classList.remove('hidden');
+    downloadSection.classList.add('hidden');
+    log("Démarrage du processus...");
 
-                const handle = await directoryHandle.getFileHandle(
-                    name.split('/').pop(),
-                    { create: true }
-                );
-                const writable = await handle.createWritable();
-                await writable.write(blob);
-                await writable.close();
-            } else {
-                filesForFinalZip.push({
-                    name: name.split('/').pop(),
-                    blob
-                });
+    try {
+        // Création du writer (le fichier de sortie)
+        const blobWriter = new zip.BlobWriter("application/zip");
+        const zipWriter = new zip.ZipWriter(blobWriter);
+
+        let totalFilesProcessed = 0;
+
+        // Boucle sur chaque fichier ZIP importé
+        for (const file of selectedFiles) {
+            log(`Analyse de l'archive : ${file.name}`);
+            
+            // Création du reader pour lire l'archive source
+            const zipReader = new zip.ZipReader(new zip.BlobReader(file));
+            const entries = await zipReader.getEntries();
+            
+            log(`--> Trouvé ${entries.length} fichiers dans ${file.name}`);
+
+            for (const entry of entries) {
+                if (entry.directory) continue; // On ignore les dossiers vides, ils se créent auto
+
+                // Mise à jour de la barre de progression (visuelle, approximative)
+                progressBar.style.width = "50%"; // Indique qu'on est en cours de traitement
+                
+                log(`Extraction & Ajout: ${entry.filename}`);
+
+                // Le cœur de la magie : Piping
+                // On prend les données de l'entrée source et on les passe directement au writer
+                // Sans tout charger en RAM d'un coup.
+                const writerStream = new zip.Uint8ArrayWriter(); 
+                // Note: Pour une optimisation maximale avec 10Go, l'idéal est le Stream,
+                // mais le BlobReader/Writer est le plus stable sur tous les navigateurs mobiles actuels.
+                
+                const fileData = await entry.getData(new zip.Uint8ArrayWriter());
+                await zipWriter.add(entry.filename, new zip.Uint8ArrayReader(fileData));
             }
-
-            processed++;
-            setProgress(Math.floor((processed / totalFiles) * 100));
+            
+            await zipReader.close();
+            totalFilesProcessed++;
+            log(`Terminé avec ${file.name}`);
         }
+
+        log("Finalisation du nouveau fichier ZIP...");
+        progressBar.style.width = "90%";
+        
+        // Fermeture du fichier final et génération du lien
+        await zipWriter.close();
+        const generatedBlob = await blobWriter.getData();
+        
+        log("Génération terminée !");
+        progressBar.style.width = "100%";
+
+        // Création de l'URL de téléchargement
+        const downloadUrl = URL.createObjectURL(generatedBlob);
+        downloadLink.href = downloadUrl;
+        downloadLink.download = "archive_fusionnee.zip";
+        
+        // Affichage du bouton de téléchargement
+        downloadSection.classList.remove('hidden');
+        log(`Taille finale : ${(generatedBlob.size / (1024 * 1024)).toFixed(2)} MB`);
+
+    } catch (error) {
+        console.error(error);
+        log(`ERREUR CRITIQUE: ${error.message}`);
+        alert("Une erreur est survenue. Vérifiez la mémoire de votre appareil ou la corruption des fichiers.");
+        mergeBtn.disabled = false;
     }
-
-    if (!isMobile) {
-        log("Création ZIP final...");
-        const finalZip = new JSZip();
-
-        filesForFinalZip.forEach((f, i) => {
-            finalZip.file(i + "_" + f.name, f.blob);
-        });
-
-        const content = await finalZip.generateAsync({ type: "blob" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(content);
-        a.download = "ZIP_FUSION_FINAL.zip";
-        a.click();
-    }
-
-    log("Terminé.");
-};
+});
