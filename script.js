@@ -1,8 +1,6 @@
-// Initialisation
+// Initialisation de la librairie
 window.onload = () => {
-    if (typeof zip === 'undefined') {
-        alert("Erreur : La librairie ZIP n'est pas chargée.");
-    } else {
+    if (typeof zip !== 'undefined') {
         zip.configure({ useWebWorkers: true });
     }
 };
@@ -17,18 +15,16 @@ const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
 const progressPercent = document.getElementById('progressPercent');
 
-// Éléments de conflit
 const conflictBox = document.getElementById('conflictBox');
 const conflictFileName = document.getElementById('conflictFileName');
 const overwriteBtn = document.getElementById('overwriteBtn');
 
 let selectedFiles = [];
 
-// Gestion des fichiers sélectionnés
 fileInput.addEventListener('change', (e) => {
     const files = Array.from(e.target.files);
     files.forEach(f => {
-        if (selectedFiles.length < 3 && f.name.toLowerCase().endsWith('.zip')) {
+        if (selectedFiles.length < 5 && f.name.toLowerCase().endsWith('.zip')) {
             selectedFiles.push(f);
         }
     });
@@ -49,7 +45,6 @@ function updateUI() {
     }
 }
 
-// LOGIQUE DE FUSION AVEC PAUSE SUR DOUBLON
 mergeBtn.addEventListener('click', async () => {
     mergeBtn.disabled = true;
     fileInput.disabled = true;
@@ -71,17 +66,16 @@ mergeBtn.addEventListener('click', async () => {
                 const data = await entry.getData(new zip.Uint8ArrayWriter());
 
                 try {
-                    // Tentative d'ajout normal
+                    // On tente l'ajout
                     await zipWriter.add(entry.filename, new zip.Uint8ArrayReader(data));
                 } catch (err) {
-                    // Si doublon détecté
-                    if (err.message.includes("exists")) {
-                        // 1. Afficher l'alerte et le nom du fichier
+                    // Si le fichier existe déjà
+                    if (err.message.toLowerCase().includes("exists")) {
                         conflictFileName.textContent = entry.filename;
                         conflictBox.classList.remove('hidden');
-                        progressText.textContent = "EN PAUSE : Doublon trouvé";
+                        progressText.textContent = "CONFLIT : En attente de décision...";
 
-                        // 2. Attendre le clic sur "Écraser et continuer"
+                        // PAUSE : On attend ton clic
                         await new Promise(resolve => {
                             overwriteBtn.onclick = () => {
                                 conflictBox.classList.add('hidden');
@@ -89,7 +83,7 @@ mergeBtn.addEventListener('click', async () => {
                             };
                         });
 
-                        // 3. Forcer l'ajout après le clic
+                        // Reprise avec écrasement forcé
                         await zipWriter.add(entry.filename, new zip.Uint8ArrayReader(data), { keepOldFile: false });
                     } else {
                         throw err;
@@ -100,7 +94,7 @@ mergeBtn.addEventListener('click', async () => {
                 let percent = Math.min(99, Math.floor((processedSize / totalSize) * 100));
                 progressBar.style.width = percent + "%";
                 progressPercent.textContent = percent + "%";
-                progressText.textContent = `Traitement : ${entry.filename}`;
+                progressText.textContent = `Fusion de ${entry.filename}`;
             }
             await reader.close();
         }
@@ -108,13 +102,14 @@ mergeBtn.addEventListener('click', async () => {
         await zipWriter.close();
         const finalBlob = await blobWriter.getData();
         document.getElementById('downloadLink').href = URL.createObjectURL(finalBlob);
-        document.getElementById('downloadLink').download = "Fusion_Archive.zip";
+        document.getElementById('downloadLink').download = "Archives_Fusionnees.zip";
 
         progressSection.classList.add('hidden');
         document.getElementById('downloadSection').classList.remove('hidden');
 
     } catch (err) {
-        alert("Erreur : " + err.message);
+        console.error(err);
+        alert("Une erreur est survenue. Le site va redémarrer.");
         location.reload();
     }
 });
