@@ -2,22 +2,22 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Fusionneur de ZIP Vidéos</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fusion ZIP Vidéos</title>
     <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h1>Fusionner plusieurs ZIP de vidéos</h1>
+<h1>📦 Extracteur de vidéos depuis ZIP</h1>
 
-<div class="dropzone" id="dropzone">
-    Glisse tes fichiers ZIP ici ou clique pour sélectionner
-    <input type="file" id="zipInput" multiple accept=".zip" hidden>
+<button id="chooseFolder">📁 Choisir le dossier de destination</button>
+
+<div class="upload">
+    <input type="file" id="zipInput" accept=".zip" multiple>
 </div>
 
-<button id="mergeBtn" disabled>Créer le ZIP final</button>
-
-<div id="status"></div>
+<div id="log"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="script.js"></script>
