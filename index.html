@@ -3,30 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fusion ZIP</title>
-<link rel="manifest" href="manifest.json">
+<title>ZIP FUSION CYBER</title>
 <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<div class="container">
-    <h1>Fusionner plusieurs ZIP</h1>
+<div class="app">
+    <h1>ZIP FUSION</h1>
 
-    <div class="card">
-        <input type="file" id="zipInput" multiple accept=".zip">
-        <button id="startBtn">Démarrer l'extraction</button>
-        <button id="chooseFolderBtn">Choisir dossier (iPhone)</button>
+    <input type="file" id="zipInput" accept=".zip" multiple hidden>
+    
+    <button id="importBtn">Importer des ZIP</button>
+    <button id="folderBtn">Choisir dossier (iPhone)</button>
+    <button id="startBtn">Démarrer</button>
 
-        <div class="progress">
-            <div id="progressBar"></div>
-        </div>
-
-        <div id="log"></div>
+    <div class="progressBox">
+        <div id="progressBar"></div>
     </div>
+
+    <pre id="log"></pre>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="script.js"></script>
+
 </body>
 </html>
