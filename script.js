@@ -1,60 +1,94 @@
 const zipInput = document.getElementById('zipInput');
-const chooseFolderBtn = document.getElementById('chooseFolder');
+const startBtn = document.getElementById('startBtn');
+const chooseFolderBtn = document.getElementById('chooseFolderBtn');
 const logDiv = document.getElementById('log');
+const progressBar = document.getElementById('progressBar');
 
 let directoryHandle = null;
+let allFiles = [];
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 function log(msg) {
     logDiv.textContent += msg + "\n";
 }
 
-const videoExtensions = ['.mp4', '.mkv', '.mov', '.webm', '.avi', '.m4v'];
-
-function isVideo(name) {
-    return videoExtensions.some(ext => name.toLowerCase().endsWith(ext));
+function updateProgress(p) {
+    progressBar.style.width = p + "%";
 }
 
-// Choix du dossier local (iPhone & PC modernes)
 chooseFolderBtn.addEventListener('click', async () => {
     try {
         directoryHandle = await window.showDirectoryPicker();
-        log("📁 Dossier sélectionné !");
-    } catch (e) {
-        log("❌ Sélection annulée");
-    }
+        log("Dossier choisi !");
+    } catch {}
 });
 
-zipInput.addEventListener('change', async (e) => {
-    if (!directoryHandle) {
-        log("⚠️ Choisis d'abord un dossier !");
+startBtn.addEventListener('click', async () => {
+    const files = zipInput.files;
+    if (files.length === 0) {
+        log("Ajoute des ZIP !");
         return;
     }
 
-    for (let file of e.target.files) {
-        log(`📦 Lecture de ${file.name}`);
+    log("Lecture des ZIP...");
+    let totalEntries = 0;
+
+    // 1) Lire tous les zips et compter
+    for (let file of files) {
         const zip = await JSZip.loadAsync(file);
-
-        for (let filename in zip.files) {
-            const entry = zip.files[filename];
-
-            if (!entry.dir && isVideo(filename)) {
-                log(`🎬 Extraction : ${filename}`);
-
-                const content = await entry.async("blob");
-
-                const fileHandle = await directoryHandle.getFileHandle(
-                    filename.split('/').pop(),
-                    { create: true }
-                );
-
-                const writable = await fileHandle.createWritable();
-                await writable.write(content);
-                await writable.close();
-            }
-        }
-
-        log(`✅ ${file.name} terminé\n`);
+        totalEntries += Object.keys(zip.files).length;
     }
 
-    log("🎉 Toutes les vidéos sont dans le dossier !");
+    let processed = 0;
+
+    // 2) Extraction
+    for (let file of files) {
+        log("Ouverture : " + file.name);
+        const zip = await JSZip.loadAsync(file);
+
+        for (let name in zip.files) {
+            const entry = zip.files[name];
+            if (entry.dir) continue;
+
+            const blob = await entry.async("blob");
+
+            if (isMobile) {
+                if (!directoryHandle) {
+                    log("Choisis un dossier !");
+                    return;
+                }
+
+                const fileHandle = await directoryHandle.getFileHandle(
+                    name.split('/').pop(),
+                    { create: true }
+                );
+                const writable = await fileHandle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+            } else {
+                allFiles.push({ name: name.split('/').pop(), blob });
+            }
+
+            processed++;
+            updateProgress(Math.round((processed / totalEntries) * 100));
+        }
+    }
+
+    // 3) PC : créer le ZIP final
+    if (!isMobile) {
+        log("Création du ZIP final...");
+        const finalZip = new JSZip();
+
+        allFiles.forEach((f, i) => {
+            finalZip.file(i + "_" + f.name, f.blob);
+        });
+
+        const content = await finalZip.generateAsync({ type: "blob" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(content);
+        a.download = "fusion_finale.zip";
+        a.click();
+    }
+
+    log("Terminé !");
 });
