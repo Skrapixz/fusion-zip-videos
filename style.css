@@ -1,35 +1,57 @@
 body {
-    font-family: system-ui, sans-serif;
     margin: 0;
-    padding: 20px;
+    font-family: system-ui;
     background: #0f172a;
     color: white;
+}
+
+.container {
+    max-width: 600px;
+    margin: auto;
+    padding: 20px;
 }
 
 h1 {
     text-align: center;
 }
 
-button {
-    width: 100%;
-    padding: 15px;
-    font-size: 16px;
-    margin: 10px 0;
-    border: none;
-    border-radius: 10px;
-    background: #2563eb;
-    color: white;
+.card {
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 15px;
 }
 
-.upload {
-    margin-top: 20px;
+input, button {
+    width: 100%;
+    margin-top: 10px;
+    padding: 14px;
+    border-radius: 10px;
+    border: none;
+    font-size: 16px;
+}
+
+button {
+    background: #3b82f6;
+    color: white;
+    cursor: pointer;
+}
+
+.progress {
+    margin-top: 15px;
+    height: 12px;
+    background: #334155;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#progressBar {
+    height: 100%;
+    width: 0%;
+    background: #22c55e;
 }
 
 #log {
-    margin-top: 20px;
-    font-size: 14px;
+    margin-top: 15px;
+    font-size: 13px;
     white-space: pre-line;
-    background: #1e293b;
-    padding: 15px;
-    border-radius: 10px;
 }
