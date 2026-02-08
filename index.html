@@ -1,23 +1,30 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fusion ZIP Vidéos</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fusion ZIP</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<h1>📦 Extracteur de vidéos depuis ZIP</h1>
+<div class="container">
+    <h1>Fusionner plusieurs ZIP</h1>
 
-<button id="chooseFolder">📁 Choisir le dossier de destination</button>
+    <div class="card">
+        <input type="file" id="zipInput" multiple accept=".zip">
+        <button id="startBtn">Démarrer l'extraction</button>
+        <button id="chooseFolderBtn">Choisir dossier (iPhone)</button>
 
-<div class="upload">
-    <input type="file" id="zipInput" accept=".zip" multiple>
+        <div class="progress">
+            <div id="progressBar"></div>
+        </div>
+
+        <div id="log"></div>
+    </div>
 </div>
-
-<div id="log"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="script.js"></script>
