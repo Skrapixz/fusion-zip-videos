@@ -1,12 +1,14 @@
-// On importe zip.js directement depuis le web (version moderne ES Module)
-import * as zip from "https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.7.34/index.js";
-
-// --- Configuration ---
+// Configuration simple
 const MAX_FILES = 3;
-// On active les workers pour ne pas geler le téléphone pendant le calcul
-zip.configure({ useWebWorkers: true });
 
-// --- Éléments du DOM ---
+// On vérifie que la librairie est chargée
+if (typeof zip === 'undefined') {
+    alert("Erreur critique : La librairie ZIP n'est pas chargée. Vérifiez votre connexion internet.");
+} else {
+    zip.configure({ useWebWorkers: true });
+}
+
+// Sélection des éléments
 const fileInput = document.getElementById('fileInput');
 const dropZone = document.getElementById('dropZone');
 const fileListContainer = document.getElementById('fileListContainer');
@@ -23,186 +25,121 @@ const resetBtn = document.getElementById('resetBtn');
 
 let selectedFiles = [];
 
-// --- Utilitaire : Formatter la taille (Ko, Mo, Go) ---
-function formatBytes(bytes, decimals = 2) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'Ko', 'Mo', 'Go', 'To'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+// Utilitaire taille
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const sizes = ['B', 'Ko', 'Mo', 'Go', 'To'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// --- Étape 1 : Gestion de l'importation ---
+// --- Étape 1 : Gestion Fichiers ---
 
-// Effet visuel quand on survole la zone
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('active');
-});
-
-dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('active');
-});
-
-dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('active');
-    handleFiles(e.dataTransfer.files);
-});
-
+// Le "change" détecte quand on sélectionne des fichiers (via clic ou drag & drop sur l'input)
 fileInput.addEventListener('change', (e) => {
+    console.log("Fichiers détectés !");
     handleFiles(e.target.files);
 });
 
 function handleFiles(files) {
-    // Conversion en tableau
     const newFiles = Array.from(files);
-
-    // Vérification basique
-    if (newFiles.length === 0) return;
     
-    // Vérification nombre de fichiers
+    if (newFiles.length === 0) return;
     if (newFiles.length > MAX_FILES) {
-        alert(`Vous ne pouvez importer que ${MAX_FILES} fichiers maximum.`);
-        fileInput.value = ""; // Reset
+        alert("Maximum 3 fichiers !");
+        fileInput.value = ""; 
         return;
     }
 
-    // Vérification extension (simple check nom)
-    const validFiles = newFiles.filter(f => f.name.toLowerCase().endsWith('.zip'));
-    if (validFiles.length !== newFiles.length) {
-        alert("Seuls les fichiers .zip sont autorisés !");
-        return;
-    }
-
-    selectedFiles = validFiles;
-    updateUIWithFiles();
+    selectedFiles = newFiles;
+    updateUI();
 }
 
-function updateUIWithFiles() {
-    // Affiche la liste
+function updateUI() {
     fileListContainer.classList.remove('hidden');
-    fileList.innerHTML = ''; // Nettoyer liste précédente
+    fileList.innerHTML = '';
     
     let totalSize = 0;
-
     selectedFiles.forEach(file => {
         totalSize += file.size;
-        
-        // Création de l'élément visuel
         const div = document.createElement('div');
         div.className = 'file-item';
-        div.innerHTML = `
-            <div class="f-icon">📦</div>
-            <div class="f-info">
-                <span class="f-name">${file.name}</span>
-                <span class="f-size">${formatBytes(file.size)} - <span style="color:#10b981">Prêt</span></span>
-            </div>
-            <div class="f-status">✓</div>
-        `;
+        div.innerHTML = `<span>📦 ${file.name}</span><span>${formatBytes(file.size)}</span>`;
         fileList.appendChild(div);
     });
 
     totalSizeTag.textContent = formatBytes(totalSize);
     
-    // Activer le bouton si on a des fichiers
-    mergeBtn.disabled = selectedFiles.length === 0;
-    mergeBtn.textContent = `Fusionner ${selectedFiles.length} Archive(s)`;
-    
-    // Cacher les sections précédentes si on recommence
-    downloadSection.classList.add('hidden');
-    progressSection.classList.add('hidden');
+    if (selectedFiles.length > 0) {
+        mergeBtn.disabled = false;
+        mergeBtn.textContent = `Fusionner (${selectedFiles.length})`;
+        mergeBtn.style.opacity = "1";
+    }
 }
 
-// --- Étape 2 : Le Processus de Fusion (Le coeur du code) ---
+// --- Étape 2 : Fusion ---
 
 mergeBtn.addEventListener('click', async () => {
+    console.log("Démarrage fusion...");
     if (selectedFiles.length === 0) return;
 
-    // UI : Passage en mode "Travail"
     mergeBtn.disabled = true;
-    fileInput.disabled = true;
+    fileInput.disabled = true; // Empêche de changer pendant le chargement
     progressSection.classList.remove('hidden');
     
     try {
-        // 1. Préparation du Writer (le fichier de sortie)
         const blobWriter = new zip.BlobWriter("application/zip");
         const zipWriter = new zip.ZipWriter(blobWriter);
 
-        // Calcul pour la barre de progression globale
-        // On estime que le travail total = somme des tailles des fichiers input
-        const totalBytesToProcess = selectedFiles.reduce((acc, f) => acc + f.size, 0);
-        let currentBytesProcessed = 0;
+        // Calcul total pour progression
+        const totalSize = selectedFiles.reduce((acc, f) => acc + f.size, 0);
+        let processedSize = 0;
 
-        // Fonction pour mettre à jour la barre
-        const updateProgress = (bytesAdded) => {
-            currentBytesProcessed += bytesAdded;
-            // On limite à 99% tant que le blob final n'est pas généré
-            let percent = Math.min(99, Math.floor((currentBytesProcessed / totalBytesToProcess) * 100));
-            progressBar.style.width = `${percent}%`;
-            progressPercent.textContent = `${percent}%`;
-        };
-
-        progressText.textContent = "Analyse des archives...";
-
-        // 2. Boucle sur chaque fichier ZIP importé
         for (const file of selectedFiles) {
-            progressText.textContent = `Traitement de : ${file.name}`;
+            progressText.textContent = `Traitement : ${file.name}`;
             
-            // On lit le fichier source
             const zipReader = new zip.ZipReader(new zip.BlobReader(file));
             const entries = await zipReader.getEntries();
 
-            // Pour chaque fichier dans le ZIP source
             for (const entry of entries) {
                 if (entry.directory) continue;
 
-                // On copie le fichier d'un zip à l'autre
-                // On utilise Uint8ArrayWriter pour le transfert direct en mémoire
-                // Note : Pour les très gros fichiers, c'est ici que la RAM du mobile peut souffrir
-                const entryData = await entry.getData(new zip.Uint8ArrayWriter());
+                // Lecture et écriture en flux
+                const data = await entry.getData(new zip.Uint8ArrayWriter());
+                await zipWriter.add(entry.filename, new zip.Uint8ArrayReader(data));
                 
-                await zipWriter.add(entry.filename, new zip.Uint8ArrayReader(entryData));
-                
-                // On met à jour la progression (taille compressée approximative)
-                updateProgress(entry.compressedSize);
+                // Mise à jour barre
+                processedSize += entry.compressedSize; // Approximation
+                const percent = Math.min(95, Math.floor((processedSize / totalSize) * 100));
+                progressBar.style.width = `${percent}%`;
+                progressPercent.textContent = `${percent}%`;
             }
-            
             await zipReader.close();
         }
 
-        // 3. Finalisation
-        progressText.textContent = "Génération du fichier final...";
-        await zipWriter.close(); // Ferme le ZIP
+        progressText.textContent = "Finalisation...";
+        await zipWriter.close();
         
-        const generatedBlob = await blobWriter.getData(); // Récupère le fichier binaire
-
-        // 4. Succès
+        const finalBlob = await blobWriter.getData();
+        
+        // Succès
         progressBar.style.width = "100%";
         progressPercent.textContent = "100%";
         
-        // Création du lien de téléchargement
-        const downloadUrl = URL.createObjectURL(generatedBlob);
-        downloadLink.href = downloadUrl;
-        downloadLink.download = "Archive_Fusionnee_Ultimate.zip";
+        const url = URL.createObjectURL(finalBlob);
+        downloadLink.href = url;
+        downloadLink.download = "Archive_Complete.zip";
         
-        // Affichage final
         progressSection.classList.add('hidden');
         downloadSection.classList.remove('hidden');
-        fileInput.disabled = false;
+        console.log("Fusion terminée avec succès.");
 
-    } catch (error) {
-        console.error(error);
-        alert("Erreur lors de la fusion : " + error.message);
-        progressText.textContent = "Erreur !";
-        progressText.style.color = "red";
+    } catch (err) {
+        console.error(err);
+        alert("Erreur : " + err.message);
         mergeBtn.disabled = false;
         fileInput.disabled = false;
     }
 });
 
-// Bouton Recommencer
-resetBtn.addEventListener('click', () => {
-    location.reload();
-});
+resetBtn.addEventListener('click', () => location.reload());
