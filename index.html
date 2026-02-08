@@ -5,14 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ZipMerge Ultimate</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/zip.js/2.7.34/zip.min.js"></script>
+    
+    <script src="https://unpkg.com/@zip.js/zip.js@2.7.34/dist/zip.min.js"></script>
 </head>
 <body>
 
     <div class="main-wrapper">
         <header>
-            <div class="logo">⚡ ZipMerge</div>
-            <p class="subtitle">Fusionneur d'archives (Max 10Go)</p>
+            <div class="logo">⚡ ZipMerge Pro</div>
+            <p class="subtitle">Fusionneur d'archives haute capacité (10 Go)</p>
         </header>
 
         <div class="card upload-card">
@@ -20,28 +21,29 @@
                 <input type="file" id="fileInput" accept=".zip" multiple>
                 
                 <div class="icon-box">📂</div>
-                <h3>Cliquez ici ou Glissez vos fichiers</h3>
-                <p>Importez vos archives ZIP</p>
-                <span class="limit-tag">Max 3 fichiers</span>
+                <h3>Cliquez ou Glissez vos fichiers</h3>
+                <p>Sélectionnez jusqu'à 3 archives ZIP</p>
+                <div class="limit-tag">Limite totale : 10 Go</div>
             </div>
         </div>
 
         <div id="fileListContainer" class="card file-list-card hidden">
             <div class="card-header">
-                <h4>Fichiers prêts</h4>
+                <h4>Fichiers détectés</h4>
                 <span id="totalSizeTag" class="badge">0 Mo</span>
             </div>
-            <div id="fileList" class="file-list"></div>
+            <div id="fileList" class="file-list">
+                </div>
         </div>
 
         <div class="action-area">
             <button id="mergeBtn" class="btn-primary" disabled>
-                Démarrer la Fusion
+                Commencer la Fusion
             </button>
             
             <div id="progressSection" class="progress-section hidden">
                 <div class="progress-info">
-                    <span id="progressText">En attente...</span>
+                    <span id="progressText">Analyse en cours...</span>
                     <span id="progressPercent">0%</span>
                 </div>
                 <div class="progress-track">
@@ -52,9 +54,16 @@
 
         <div id="downloadSection" class="card download-card hidden">
             <div class="success-anim">✓</div>
-            <h3>Terminé !</h3>
-            <a id="downloadLink" href="#" class="btn-download">Télécharger le ZIP</a>
-            <button id="resetBtn" class="btn-text">Recommencer</button>
+            <h3>Archive Fusionnée !</h3>
+            <p>Le traitement est terminé avec succès.</p>
+            
+            <a id="downloadLink" href="#" class="btn-download">
+                ⬇️ Télécharger maintenant
+            </a>
+            
+            <button id="resetBtn" class="btn-text" onclick="window.location.reload()">
+                Effacer et recommencer
+            </button>
         </div>
     </div>
 
