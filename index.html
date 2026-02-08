@@ -1,32 +1,50 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZIP FUSION CYBER</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fusionneur de ZIP Ultimate</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/zip.js/2.7.34/zip.min.js"></script>
 </head>
-
 <body>
 
-<div class="app">
-    <h1>ZIP FUSION</h1>
+    <div class="container">
+        <header>
+            <h1>ZIP Merger <span>Pro</span></h1>
+            <p>Fusionnez jusqu'à 3 archives (Max 10Go total)</p>
+        </header>
 
-    <input type="file" id="zipInput" accept=".zip" multiple hidden>
-    
-    <button id="importBtn">Importer des ZIP</button>
-    <button id="folderBtn">Choisir dossier (iPhone)</button>
-    <button id="startBtn">Démarrer</button>
+        <div class="upload-section">
+            <label for="fileInput" class="drop-zone">
+                <span class="icon">📂</span>
+                <span class="text">Cliquez pour choisir vos fichiers ZIP</span>
+                <span class="sub-text">(Max 3 fichiers)</span>
+                <input type="file" id="fileInput" accept=".zip" multiple>
+            </label>
+            <div id="fileList" class="file-list"></div>
+        </div>
 
-    <div class="progressBox">
-        <div id="progressBar"></div>
+        <div class="actions">
+            <button id="mergeBtn" class="btn primary" disabled>Démarrer la Fusion</button>
+        </div>
+
+        <div class="status-section hidden" id="statusSection">
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="log-window" id="logWindow">
+                <p class="log-entry">En attente...</p>
+            </div>
+        </div>
+
+        <div class="download-section hidden" id="downloadSection">
+            <div class="success-icon">✅</div>
+            <p>Fusion terminée avec succès !</p>
+            <a id="downloadLink" class="btn download">Télécharger l'archive fusionnée</a>
+        </div>
     </div>
 
-    <pre id="log"></pre>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="script.js"></script>
-
+    <script src="script.js"></script>
 </body>
 </html>
