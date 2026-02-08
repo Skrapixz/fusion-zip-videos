@@ -1,94 +1,60 @@
-const dropzone = document.getElementById('dropzone');
-const input = document.getElementById('zipInput');
-const mergeBtn = document.getElementById('mergeBtn');
-const status = document.getElementById('status');
+const zipInput = document.getElementById('zipInput');
+const chooseFolderBtn = document.getElementById('chooseFolder');
+const logDiv = document.getElementById('log');
 
-let videoFiles = [];
-
-const videoExtensions = [
-    '.mp4', '.webm', '.mkv', '.mov', '.avi', '.m4v'
-];
-
-function isVideo(filename) {
-    return videoExtensions.some(ext => filename.toLowerCase().endsWith(ext));
-}
+let directoryHandle = null;
 
 function log(msg) {
-    status.textContent += msg + "\n";
+    logDiv.textContent += msg + "\n";
 }
 
-dropzone.addEventListener('click', () => input.click());
+const videoExtensions = ['.mp4', '.mkv', '.mov', '.webm', '.avi', '.m4v'];
 
-dropzone.addEventListener('dragover', e => {
-    e.preventDefault();
-    dropzone.style.background = '#ddf';
+function isVideo(name) {
+    return videoExtensions.some(ext => name.toLowerCase().endsWith(ext));
+}
+
+// Choix du dossier local (iPhone & PC modernes)
+chooseFolderBtn.addEventListener('click', async () => {
+    try {
+        directoryHandle = await window.showDirectoryPicker();
+        log("📁 Dossier sélectionné !");
+    } catch (e) {
+        log("❌ Sélection annulée");
+    }
 });
 
-dropzone.addEventListener('dragleave', () => {
-    dropzone.style.background = 'white';
-});
+zipInput.addEventListener('change', async (e) => {
+    if (!directoryHandle) {
+        log("⚠️ Choisis d'abord un dossier !");
+        return;
+    }
 
-dropzone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropzone.style.background = 'white';
-    handleFiles(e.dataTransfer.files);
-});
-
-input.addEventListener('change', () => {
-    handleFiles(input.files);
-});
-
-async function handleFiles(files) {
-    for (let file of files) {
-        if (!file.name.endsWith('.zip')) {
-            log(`❌ ${file.name} n'est pas un zip`);
-            continue;
-        }
-
-        log(`📦 Lecture de ${file.name}...`);
+    for (let file of e.target.files) {
+        log(`📦 Lecture de ${file.name}`);
         const zip = await JSZip.loadAsync(file);
 
         for (let filename in zip.files) {
             const entry = zip.files[filename];
 
             if (!entry.dir && isVideo(filename)) {
-                log(`🎬 Vidéo trouvée : ${filename}`);
-                const blob = await entry.async("blob");
+                log(`🎬 Extraction : ${filename}`);
 
-                videoFiles.push({
-                    name: filename.split('/').pop(),
-                    blob: blob
-                });
+                const content = await entry.async("blob");
+
+                const fileHandle = await directoryHandle.getFileHandle(
+                    filename.split('/').pop(),
+                    { create: true }
+                );
+
+                const writable = await fileHandle.createWritable();
+                await writable.write(content);
+                await writable.close();
             }
         }
 
-        log(`✅ ${file.name} traité\n`);
+        log(`✅ ${file.name} terminé\n`);
     }
 
-    if (videoFiles.length > 0) {
-        mergeBtn.disabled = false;
-        log(`➡️ ${videoFiles.length} vidéos prêtes à être fusionnées`);
-    } else {
-        log("Aucune vidéo trouvée.");
-    }
-}
-
-mergeBtn.addEventListener('click', async () => {
-    log("🛠 Création du ZIP final...");
-
-    const finalZip = new JSZip();
-
-    videoFiles.forEach((video, index) => {
-        const uniqueName = `${index}_${video.name}`;
-        finalZip.file(uniqueName, video.blob);
-    });
-
-    const content = await finalZip.generateAsync({ type: "blob" });
-
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(content);
-    link.download = "videos_fusionnees.zip";
-    link.click();
-
-    log("✅ ZIP final téléchargé !");
+    log("🎉 Toutes les vidéos sont dans le dossier !");
 });
