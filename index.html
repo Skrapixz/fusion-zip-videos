@@ -2,49 +2,64 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fusionneur de ZIP Ultimate</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ZipMerge Ultimate</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/zip.js/2.7.34/zip.min.js"></script>
 </head>
 <body>
 
-    <div class="container">
+    <div class="main-wrapper">
         <header>
-            <h1>ZIP Merger <span>Pro</span></h1>
-            <p>Fusionnez jusqu'à 3 archives (Max 10Go total)</p>
+            <div class="logo">⚡ ZipMerge</div>
+            <p class="subtitle">Fusionneur d'archives haute capacité</p>
         </header>
 
-        <div class="upload-section">
-            <label for="fileInput" class="drop-zone">
-                <span class="icon">📂</span>
-                <span class="text">Cliquez pour choisir vos fichiers ZIP</span>
-                <span class="sub-text">(Max 3 fichiers)</span>
+        <div class="card upload-card">
+            <div class="drop-zone" id="dropZone">
+                <div class="icon-box">📂</div>
+                <h3>Glissez vos fichiers ici</h3>
+                <p>ou cliquez pour parcourir</p>
+                <span class="limit-tag">Max 3 fichiers ZIP</span>
                 <input type="file" id="fileInput" accept=".zip" multiple>
-            </label>
-            <div id="fileList" class="file-list"></div>
-        </div>
-
-        <div class="actions">
-            <button id="mergeBtn" class="btn primary" disabled>Démarrer la Fusion</button>
-        </div>
-
-        <div class="status-section hidden" id="statusSection">
-            <div class="progress-container">
-                <div class="progress-bar" id="progressBar"></div>
-            </div>
-            <div class="log-window" id="logWindow">
-                <p class="log-entry">En attente...</p>
             </div>
         </div>
 
-        <div class="download-section hidden" id="downloadSection">
-            <div class="success-icon">✅</div>
-            <p>Fusion terminée avec succès !</p>
-            <a id="downloadLink" class="btn download">Télécharger l'archive fusionnée</a>
+        <div id="fileListContainer" class="card file-list-card hidden">
+            <div class="card-header">
+                <h4>Fichiers prêts à fusionner</h4>
+                <span id="totalSizeTag" class="badge">0 Mo</span>
+            </div>
+            <div id="fileList" class="file-list">
+                </div>
+        </div>
+
+        <div class="action-area">
+            <button id="mergeBtn" class="btn-primary" disabled>
+                Commencer la Fusion
+            </button>
+            
+            <div id="progressSection" class="progress-section hidden">
+                <div class="progress-info">
+                    <span id="progressText">Initialisation...</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div id="progressBar" class="progress-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="downloadSection" class="card download-card hidden">
+            <div class="success-anim">✓</div>
+            <h3>Fusion Terminée !</h3>
+            <p>Votre archive unique est prête.</p>
+            <a id="downloadLink" href="#" class="btn-download">
+                ⬇️ Télécharger l'archive
+            </a>
+            <button id="resetBtn" class="btn-text">Recommencer</button>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>
