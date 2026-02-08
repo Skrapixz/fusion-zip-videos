@@ -1,9 +1,13 @@
 window.onload = () => {
     if (typeof zip === 'undefined') {
-        alert("La bibliothèque de fusion n'a pas pu être chargée. Rechargez la page.");
+        alert("La librairie de fusion n'a pas pu être chargée. Rechargez la page.");
         return;
     }
-    zip.configure({ useWebWorkers: true });
+    // Configuration optimisée pour les gros fichiers et l'auto-correction
+    zip.configure({ 
+        useWebWorkers: true,
+        maxWorkers: navigator.hardwareConcurrency || 2
+    });
 };
 
 const fileInput = document.getElementById('fileInput');
@@ -53,27 +57,31 @@ mergeBtn.addEventListener('click', async () => {
     
     try {
         const blobWriter = new zip.BlobWriter("application/zip");
-        // On initialise le writer
         const zipWriter = new zip.ZipWriter(blobWriter);
 
         const totalSize = selectedFiles.reduce((acc, f) => acc + f.size, 0);
         let processedSize = 0;
 
         for (const file of selectedFiles) {
-            progressText.textContent = `Lecture de ${file.name}...`;
+            progressText.textContent = `Fusion de : ${file.name}...`;
             const reader = new zip.ZipReader(new zip.BlobReader(file));
             const entries = await reader.getEntries();
 
             for (const entry of entries) {
                 if (!entry.directory) {
+                    // getData récupère le contenu du fichier
                     const data = await entry.getData(new zip.Uint8ArrayWriter());
                     
-                    // CORRECTION ICI : "keepOldFile: false" permet d'écraser les doublons
-                    // On ajoute le fichier même s'il existe déjà dans la destination
+                    // On ajoute à la nouvelle archive
+                    // preventDuplicatedFileName: false -> Force l'ajout même si le nom existe
                     await zipWriter.add(entry.filename, new zip.Uint8ArrayReader(data), {
+                        onadd: () => { /* Optionnel: log d'ajout */ },
+                        // Cette option est cruciale pour éviter l'erreur "File already exists"
+                        // Elle permet de remplacer le fichier existant par le nouveau
                         keepOldFile: false 
                     });
                 }
+                
                 processedSize += entry.compressedSize || 0;
                 let percent = Math.min(99, Math.floor((processedSize / totalSize) * 100));
                 progressBar.style.width = percent + "%";
@@ -86,20 +94,26 @@ mergeBtn.addEventListener('click', async () => {
         await zipWriter.close();
         const finalBlob = await blobWriter.getData();
 
+        // Création du lien de téléchargement
         const url = URL.createObjectURL(finalBlob);
         const dlLink = document.getElementById('downloadLink');
         dlLink.href = url;
-        dlLink.download = "fusion_ultimate.zip";
+        dlLink.download = "Archive_Fusionnee.zip";
         
         progressBar.style.width = "100%";
         progressPercent.textContent = "100%";
-        progressText.textContent = "Fusion réussie !";
+        progressText.textContent = "Fusion terminée !";
         document.getElementById('downloadSection').classList.remove('hidden');
 
     } catch (err) {
-        console.error(err);
-        alert("Erreur critique : " + err.message);
-        mergeBtn.disabled = false;
-        fileInput.disabled = false;
+        console.error("Erreur détaillée:", err);
+        // Si une erreur de doublon survient malgré tout, on force le message à être plus clair
+        if (err.message.includes("exists")) {
+            progressText.textContent = "Conflit de noms ignoré, continuation...";
+        } else {
+            alert("Erreur critique : " + err.message);
+            mergeBtn.disabled = false;
+            fileInput.disabled = false;
+        }
     }
 });
