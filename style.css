@@ -1,45 +1,47 @@
 body {
     margin: 0;
-    font-family: system-ui;
-    background: #0f172a;
-    color: white;
+    font-family: monospace;
+    background: radial-gradient(circle at top, #0a0f2c, #000);
+    color: #00ffe7;
 }
 
-.container {
-    max-width: 600px;
+.app {
+    max-width: 650px;
     margin: auto;
-    padding: 20px;
-}
-
-h1 {
+    padding: 30px;
     text-align: center;
 }
 
-.card {
-    background: #1e293b;
-    padding: 20px;
-    border-radius: 15px;
-}
-
-input, button {
-    width: 100%;
-    margin-top: 10px;
-    padding: 14px;
-    border-radius: 10px;
-    border: none;
-    font-size: 16px;
+h1 {
+    font-size: 42px;
+    letter-spacing: 4px;
+    text-shadow: 0 0 20px #00ffe7;
 }
 
 button {
-    background: #3b82f6;
-    color: white;
+    width: 100%;
+    margin-top: 15px;
+    padding: 16px;
+    font-size: 16px;
+    border: 1px solid #00ffe7;
+    background: transparent;
+    color: #00ffe7;
+    border-radius: 8px;
     cursor: pointer;
+    transition: 0.2s;
 }
 
-.progress {
-    margin-top: 15px;
-    height: 12px;
-    background: #334155;
+button:hover {
+    background: #00ffe7;
+    color: black;
+    box-shadow: 0 0 15px #00ffe7;
+}
+
+.progressBox {
+    margin-top: 25px;
+    height: 14px;
+    background: #111;
+    border: 1px solid #00ffe7;
     border-radius: 8px;
     overflow: hidden;
 }
@@ -47,11 +49,13 @@ button {
 #progressBar {
     height: 100%;
     width: 0%;
-    background: #22c55e;
+    background: #ff00ff;
+    box-shadow: 0 0 15px #ff00ff;
 }
 
 #log {
-    margin-top: 15px;
-    font-size: 13px;
+    margin-top: 20px;
+    font-size: 12px;
+    text-align: left;
     white-space: pre-line;
 }
