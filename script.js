@@ -1,145 +1,116 @@
-// Configuration simple
-const MAX_FILES = 3;
-
-// On vérifie que la librairie est chargée
-if (typeof zip === 'undefined') {
-    alert("Erreur critique : La librairie ZIP n'est pas chargée. Vérifiez votre connexion internet.");
-} else {
+// On attend que la page et la bibliothèque soient chargées
+window.onload = () => {
+    if (typeof zip === 'undefined') {
+        alert("La bibliothèque de fusion n'a pas pu être chargée. Rechargez la page.");
+        return;
+    }
     zip.configure({ useWebWorkers: true });
-}
+};
 
-// Sélection des éléments
 const fileInput = document.getElementById('fileInput');
-const dropZone = document.getElementById('dropZone');
-const fileListContainer = document.getElementById('fileListContainer');
 const fileList = document.getElementById('fileList');
+const fileListContainer = document.getElementById('fileListContainer');
 const totalSizeTag = document.getElementById('totalSizeTag');
 const mergeBtn = document.getElementById('mergeBtn');
 const progressSection = document.getElementById('progressSection');
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
 const progressPercent = document.getElementById('progressPercent');
-const downloadSection = document.getElementById('downloadSection');
-const downloadLink = document.getElementById('downloadLink');
-const resetBtn = document.getElementById('resetBtn');
 
 let selectedFiles = [];
 
-// Utilitaire taille
-function formatBytes(bytes) {
-    if (bytes === 0) return '0 B';
-    const sizes = ['B', 'Ko', 'Mo', 'Go', 'To'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-// --- Étape 1 : Gestion Fichiers ---
-
-// Le "change" détecte quand on sélectionne des fichiers (via clic ou drag & drop sur l'input)
+// Fonction pour ajouter des fichiers à la liste existante
 fileInput.addEventListener('change', (e) => {
-    console.log("Fichiers détectés !");
-    handleFiles(e.target.files);
-});
-
-function handleFiles(files) {
-    const newFiles = Array.from(files);
+    const newFiles = Array.from(e.target.files);
     
-    if (newFiles.length === 0) return;
-    if (newFiles.length > MAX_FILES) {
-        alert("Maximum 3 fichiers !");
-        fileInput.value = ""; 
-        return;
-    }
-
-    selectedFiles = newFiles;
-    updateUI();
-}
-
-function updateUI() {
-    fileListContainer.classList.remove('hidden');
-    fileList.innerHTML = '';
-    
-    let totalSize = 0;
-    selectedFiles.forEach(file => {
-        totalSize += file.size;
-        const div = document.createElement('div');
-        div.className = 'file-item';
-        div.innerHTML = `<span>📦 ${file.name}</span><span>${formatBytes(file.size)}</span>`;
-        fileList.appendChild(div);
+    // On ajoute les nouveaux fichiers sans dépasser 3 au total
+    newFiles.forEach(file => {
+        if (selectedFiles.length < 3 && file.name.toLowerCase().endsWith('.zip')) {
+            selectedFiles.push(file);
+        }
     });
 
-    totalSizeTag.textContent = formatBytes(totalSize);
-    
+    if (selectedFiles.length > 3) {
+        alert("Seuls les 3 premiers fichiers ZIP ont été conservés.");
+        selectedFiles = selectedFiles.slice(0, 3);
+    }
+
+    updateUI();
+});
+
+function updateUI() {
     if (selectedFiles.length > 0) {
+        fileListContainer.classList.remove('hidden');
+        fileList.innerHTML = '';
+        let total = 0;
+
+        selectedFiles.forEach((file, index) => {
+            total += file.size;
+            const item = document.createElement('div');
+            item.className = 'file-item';
+            item.innerHTML = `
+                <span>📦 ${file.name}</span>
+                <span style="color:#10b981">PRÊT (${(file.size / (1024*1024)).toFixed(1)} Mo)</span>
+            `;
+            fileList.appendChild(item);
+        });
+
+        totalSizeTag.textContent = (total / (1024*1024)).toFixed(1) + " Mo";
         mergeBtn.disabled = false;
-        mergeBtn.textContent = `Fusionner (${selectedFiles.length})`;
-        mergeBtn.style.opacity = "1";
+        mergeBtn.textContent = `Fusionner les ${selectedFiles.length} fichiers`;
     }
 }
 
-// --- Étape 2 : Fusion ---
-
 mergeBtn.addEventListener('click', async () => {
-    console.log("Démarrage fusion...");
-    if (selectedFiles.length === 0) return;
-
     mergeBtn.disabled = true;
-    fileInput.disabled = true; // Empêche de changer pendant le chargement
     progressSection.classList.remove('hidden');
     
     try {
         const blobWriter = new zip.BlobWriter("application/zip");
         const zipWriter = new zip.ZipWriter(blobWriter);
 
-        // Calcul total pour progression
+        // Progression réelle basée sur la taille traitée
         const totalSize = selectedFiles.reduce((acc, f) => acc + f.size, 0);
         let processedSize = 0;
 
         for (const file of selectedFiles) {
-            progressText.textContent = `Traitement : ${file.name}`;
-            
-            const zipReader = new zip.ZipReader(new zip.BlobReader(file));
-            const entries = await zipReader.getEntries();
+            progressText.textContent = `Lecture de ${file.name}...`;
+            const reader = new zip.ZipReader(new zip.BlobReader(file));
+            const entries = await reader.getEntries();
 
             for (const entry of entries) {
-                if (entry.directory) continue;
-
-                // Lecture et écriture en flux
-                const data = await entry.getData(new zip.Uint8ArrayWriter());
-                await zipWriter.add(entry.filename, new zip.Uint8ArrayReader(data));
-                
-                // Mise à jour barre
-                processedSize += entry.compressedSize; // Approximation
-                const percent = Math.min(95, Math.floor((processedSize / totalSize) * 100));
-                progressBar.style.width = `${percent}%`;
-                progressPercent.textContent = `${percent}%`;
+                if (!entry.directory) {
+                    // Extraction et ajout direct
+                    const data = await entry.getData(new zip.Uint8ArrayWriter());
+                    await zipWriter.add(entry.filename, new zip.Uint8ArrayReader(data));
+                }
+                // Mise à jour de la barre réelle
+                processedSize += entry.compressedSize || 0;
+                let percent = Math.min(98, Math.floor((processedSize / totalSize) * 100));
+                progressBar.style.width = percent + "%";
+                progressPercent.textContent = percent + "%";
             }
-            await zipReader.close();
+            await reader.close();
         }
 
-        progressText.textContent = "Finalisation...";
+        progressText.textContent = "Création du fichier final...";
         await zipWriter.close();
-        
         const finalBlob = await blobWriter.getData();
+
+        // Affichage du lien de téléchargement
+        const url = URL.createObjectURL(finalBlob);
+        document.getElementById('downloadLink').href = url;
+        document.getElementById('downloadLink').download = "fusion_fichiers.zip";
         
-        // Succès
         progressBar.style.width = "100%";
         progressPercent.textContent = "100%";
-        
-        const url = URL.createObjectURL(finalBlob);
-        downloadLink.href = url;
-        downloadLink.download = "Archive_Complete.zip";
-        
-        progressSection.classList.add('hidden');
-        downloadSection.classList.remove('hidden');
-        console.log("Fusion terminée avec succès.");
+        progressText.textContent = "Fusion réussie !";
+        document.getElementById('downloadSection').classList.remove('hidden');
 
     } catch (err) {
-        console.error(err);
-        alert("Erreur : " + err.message);
+        alert("Erreur lors de la fusion : " + err.message);
         mergeBtn.disabled = false;
-        fileInput.disabled = false;
     }
 });
 
-resetBtn.addEventListener('click', () => location.reload());
+document.getElementById('resetBtn').onclick = () => location.reload();
